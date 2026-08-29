@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -16,7 +15,10 @@ model User {
   createdAt DateTime @default(now())
 }
 
-enum Role { STUDENT ADMIN }
+enum Role {
+  STUDENT
+  ADMIN
+}
 
 model Paper {
   id           String      @id @default(cuid())
@@ -29,7 +31,12 @@ model Paper {
   createdAt    DateTime    @default(now())
 }
 
-enum PaperStatus { PENDING EXTRACTING REVIEW PUBLISHED }
+enum PaperStatus {
+  PENDING
+  EXTRACTING
+  REVIEW
+  PUBLISHED
+}
 
 model Question {
   id            String       @id @default(cuid())
@@ -46,8 +53,16 @@ model Question {
   mockQuestions MockQuestion[]
 }
 
-enum Subject { PHYSICS CHEMISTRY MATHEMATICS }
-enum QuestionType { MCQ INTEGER }
+enum Subject {
+  PHYSICS
+  CHEMISTRY
+  MATHEMATICS
+}
+
+enum QuestionType {
+  MCQ
+  INTEGER
+}
 
 model Mock {
   id            String         @id @default(cuid())
