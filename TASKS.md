@@ -3,24 +3,24 @@
 This document breaks down the PRD into actionable development tasks mapped to our implementation phases.
 
 ## Phase 1: Foundation & Project Setup
-*   [ ] **Task 1.1: Next.js Initialization**
+*   [x] **Task 1.1: Next.js Initialization**
     *   Initialize Next.js 14 App Router project with TypeScript, ESLint, and Tailwind CSS.
     *   Set up `shadcn/ui` components library for rapid, clean component development.
-*   [ ] **Task 1.2: Database schema & ORM**
+*   [x] **Task 1.2: Database schema & ORM**
     *   Install Prisma and configure connection to Supabase PostgreSQL.
     *   Implement the schema defined in the PRD (User, Paper, Question, Mock, MockQuestion, AttemptAnswer).
     *   Push initial migration to db.
-*   [ ] **Task 1.3: Supabase Authentication**
+*   [x] **Task 1.3: Supabase Authentication**
     *   Set up Supabase Auth client-side and server-side logic (@supabase/ssr).
     *   Create login/signup pages.
-    *   Implement Next.js Middleware to protect routes (`/admin/*` for ADMIN role, `/mock/*` and `/dashboard` for STUDENT).
-*   [ ] **Task 1.4: Supabase Storage Configuration**
+    *   Implement Next.js Middleware to protect routes (`/contribute/*` and `/dashboard` for ANY authenticated user).
+*   [x] **Task 1.4: Supabase Storage Configuration**
     *   Create a bucket in Supabase for `papers`.
-    *   Add RLS (Row Level Security) policies (Admin upload, Student read-only for future PDF preview usage).
+    *   Add RLS (Row Level Security) policies (All authenticated users can upload and read).
 
-## Phase 2: Admin Ingestion Pipeline
-*   [ ] **Task 2.1: Admin Papers Dashboard**
-    *   Build `/admin/papers` view to list existing papers (PENDING, EXTRACTING, REVIEW, PUBLISHED).
+## Phase 2: Community Ingestion Pipeline
+*   [ ] **Task 2.1: Community Papers Dashboard**
+    *   Build `/contribute` view to list existing papers (PENDING, EXTRACTING, REVIEW, PUBLISHED).
     *   Create the PDF upload modal/form.
 *   [ ] **Task 2.2: PDF Upload Logic**
     *   Create an API route/Server Action to handle PDF upload to Supabase Storage.
@@ -29,10 +29,10 @@ This document breaks down the PRD into actionable development tasks mapped to ou
     *   Install `pdf-parse`.
     *   Create `/api/extract` route to fetch PDF from Storage, parse raw text, and run initial regex heuristics to split the text into raw `Question` database rows.
     *   Update Paper status to `REVIEW`.
-*   [ ] **Task 2.4: Admin Review Screen (The Core Tool)**
+*   [ ] **Task 2.4: Contributor Review Screen (The Core Tool)**
     *   Install React Table (`@tanstack/react-table`).
-    *   Build `/admin/papers/[id]` with a data table capable of inline editing for: Subject, Question Text, Options, Correct Answer, Solution Text.
-    *   Include an integrated PDF viewer (`react-pdf`) as a side-panel for the admin to reference while verifying.
+    *   Build `/contribute/[id]` with a data table capable of inline editing for: Subject, Question Text, Options, Correct Answer, Solution Text.
+    *   Include an integrated PDF viewer (`react-pdf`) as a side-panel for the user to reference while verifying.
 *   [ ] **Task 2.5: Publish Logic**
     *   Implement row-level "Mark Verified" toggles.
     *   Implement "Publish" action asserting all questions are verified and cleanly formatted.

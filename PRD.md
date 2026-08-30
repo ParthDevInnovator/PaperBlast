@@ -22,10 +22,10 @@ An open-mode practice platform for JEE Main candidates. The platform ingests off
 
 ## 4. User Roles & Core Workflows
 
-### 4.1 Admin Workflows (The Ingestion Pipeline)
-1.  **Upload:** Admin uploads an official JEE past paper PDF. It goes to Supabase Storage, and a `Paper` record is created (`status: PENDING`).
-2.  **Extraction Trigger:** Admin triggers extraction. Node.js backend uses `pdf-parse` to extract raw text and splits it into potential questions using regex rules (`status: EXTRACTING`).
-3.  **Review Screen (The Core Admin UX):** A spreadsheet-like view (TanStack Table) where the Admin cleans up the raw text extraction. 
+### 4.1 Community Workflows (The Ingestion Pipeline)
+1.  **Upload:** Any registered user can upload an official JEE past paper PDF. It goes to Supabase Storage, and a `Paper` record is created (`status: PENDING`).
+2.  **Extraction Trigger:** User triggers extraction. Node.js backend uses `pdf-parse` to extract raw text and splits it into potential questions using regex rules (`status: EXTRACTING`).
+3.  **Review Screen (The Core Contributor UX):** A spreadsheet-like view (TanStack Table) where the User cleans up the raw text extraction. 
     *   Assigns `Subject` (Physics, Chemistry, Math).
     *   Corrects `questionText`, `options`, `correctAnswer`, `solutionText`.
     *   Marks each question as `isVerified`.
@@ -143,6 +143,6 @@ model AttemptAnswer {
 
 ## 7. Implementation Phases
 *   **Phase 1: Project Scaffolding & DB Setup** (Next.js config, Prisma setup, Supabase connection)
-*   **Phase 2: Admin Ingestion Pipeline** (Upload PDF, Node-based `pdf-parse`, basic chunking logic, TanStack Review UI)
+*   **Phase 2: Community Ingestion Pipeline** (Upload PDF, Node-based `pdf-parse`, basic chunking logic, TanStack Review UI)
 *   **Phase 3: Student Mock Engine** (Dashboard, attempt generation logic with reshuffling, UI for hiding answers, local autosaving)
 *   **Phase 4: Auto-Grading & Review View** (Calculating NTA scores, displaying detailed solutions, polishing UI)
