@@ -10,32 +10,13 @@ export async function login(formData: FormData) {
 
     const supabase = await createClient()
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-    })
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
         return redirect(`/auth/login?error=${encodeURIComponent("Auth Error: " + error.message)}`)
     }
 
-    if (data?.user) {
-        try {
-            await prisma.user.upsert({
-                where: { id: data.user.id },
-                update: {},
-                create: {
-                    id: data.user.id,
-                    email: email,
-                    name: email.split('@')[0],
-                }
-            })
-        } catch (dbError: any) {
-            console.error("Prisma Login Error:", dbError)
-            return redirect(`/auth/login?error=${encodeURIComponent("Database Error: " + (dbError.message || "Unknown"))}`)
-        }
-    }
-
+    // No DB call needed on login — user record already exists from signup
     redirect("/dashboard")
 }
 
@@ -45,15 +26,13 @@ export async function signup(formData: FormData) {
 
     const supabase = await createClient()
 
-    const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-    })
+    const { data, error } = await supabase.auth.signUp({ email, password })
 
     if (error) {
         return redirect(`/auth/login?error=${encodeURIComponent("Auth Error: " + error.message)}`)
     }
 
+    // Only on first signup — create the public User record
     if (data?.user) {
         try {
             await prisma.user.upsert({
@@ -62,8 +41,8 @@ export async function signup(formData: FormData) {
                 create: {
                     id: data.user.id,
                     email: email,
-                    name: email.split('@')[0],
-                }
+                    name: email.split("@")[0],
+                },
             })
         } catch (dbError: any) {
             console.error("Prisma Signup Error:", dbError)
