@@ -33,14 +33,14 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     // ROUTE PROTECTION LOGIC
-    const isAuthRoute = request.nextUrl.pathname.startsWith("/login") || request.nextUrl.pathname.startsWith("/auth")
+    const isAuthRoute = request.nextUrl.pathname.startsWith("/auth/login") || request.nextUrl.pathname === "/auth"
     const isAdminRoute = request.nextUrl.pathname.startsWith("/admin")
     const isProtectedRoute = request.nextUrl.pathname.startsWith("/dashboard") || request.nextUrl.pathname.startsWith("/mock")
 
     if (!user && (isProtectedRoute || isAdminRoute)) {
         // no user, potentially respond by redirecting the user to the login page
         const url = request.nextUrl.clone()
-        url.pathname = "/login"
+        url.pathname = "/auth/login"
         return NextResponse.redirect(url)
     }
 
