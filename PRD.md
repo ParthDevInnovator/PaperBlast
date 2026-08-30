@@ -25,7 +25,7 @@ An open-mode practice platform for JEE Main candidates. The platform ingests off
 ### 4.1 Community Workflows (The Ingestion Pipeline)
 1.  **Upload:** Any registered user can upload an official JEE past paper PDF. It goes to Supabase Storage, and a `Paper` record is created (`status: PENDING`).
 2.  **Extraction Trigger:** User triggers extraction. Node.js backend uses `pdf-parse` to extract raw text and splits it into potential questions using regex rules (`status: EXTRACTING`).
-3.  **Review Screen (The Core Contributor UX):** A spreadsheet-like view (TanStack Table) where the User cleans up the raw text extraction. 
+3.  **Review Screen:** A spreadsheet-like view (TanStack Table) where the User cleans up the raw text extraction. 
     *   Assigns `Subject` (Physics, Chemistry, Math).
     *   Corrects `questionText`, `options`, `correctAnswer`, `solutionText`.
     *   Marks each question as `isVerified`.

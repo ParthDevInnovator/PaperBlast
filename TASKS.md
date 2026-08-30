@@ -19,8 +19,8 @@ This document breaks down the PRD into actionable development tasks mapped to ou
     *   Add RLS (Row Level Security) policies (All authenticated users can upload and read).
 
 ## Phase 2: Community Ingestion Pipeline
-*   [ ] **Task 2.1: Community Papers Dashboard**
-    *   Build `/contribute` view to list existing papers (PENDING, EXTRACTING, REVIEW, PUBLISHED).
+*   [ ] **Task 2.1: Papers Dashboard**
+    *   Build `/dashboard` view to list existing uploaded papers (PENDING, EXTRACTING, REVIEW, PUBLISHED).
     *   Create the PDF upload modal/form.
 *   [ ] **Task 2.2: PDF Upload Logic**
     *   Create an API route/Server Action to handle PDF upload to Supabase Storage.
@@ -29,9 +29,9 @@ This document breaks down the PRD into actionable development tasks mapped to ou
     *   Install `pdf-parse`.
     *   Create `/api/extract` route to fetch PDF from Storage, parse raw text, and run initial regex heuristics to split the text into raw `Question` database rows.
     *   Update Paper status to `REVIEW`.
-*   [ ] **Task 2.4: Contributor Review Screen (The Core Tool)**
+*   [ ] **Task 2.4: Review Screen (The Core Tool)**
     *   Install React Table (`@tanstack/react-table`).
-    *   Build `/contribute/[id]` with a data table capable of inline editing for: Subject, Question Text, Options, Correct Answer, Solution Text.
+    *   Build `/dashboard/review/[id]` with a data table capable of inline editing for: Subject, Question Text, Options, Correct Answer, Solution Text.
     *   Include an integrated PDF viewer (`react-pdf`) as a side-panel for the user to reference while verifying.
 *   [ ] **Task 2.5: Publish Logic**
     *   Implement row-level "Mark Verified" toggles.
