@@ -15,19 +15,29 @@ async function setupStorage() {
     try {
         console.log("1. Creating 'papers' bucket...")
         const { data: bucket, error: bucketError } = await supabase.storage.createBucket("papers", {
-            public: false,
-            fileSizeLimit: 10485760,
+            public: true,
+            fileSizeLimit: 52428800, // 50 MB
             allowedMimeTypes: ["application/pdf"],
         })
 
         if (bucketError) {
             if (bucketError.message.includes("already exists") || bucketError.message.includes("duplicate key")) {
-                console.log("✅ Bucket 'papers' already exists.")
+                console.log("Bucket 'papers' already exists — updating file size limit to 50MB...")
+                const { error: updateError } = await supabase.storage.updateBucket("papers", {
+                    public: true,
+                    fileSizeLimit: 52428800, // 50 MB
+                    allowedMimeTypes: ["application/pdf"],
+                })
+                if (updateError) {
+                    console.error("Failed to update bucket:", updateError.message)
+                } else {
+                    console.log("✅ Bucket 'papers' updated — 50MB limit applied.")
+                }
             } else {
                 throw new Error(`Failed to create bucket: ${bucketError.message}`)
             }
         } else {
-            console.log("✅ Bucket 'papers' created successfully!")
+            console.log("✅ Bucket 'papers' created with 50MB limit!")
         }
 
         console.log("2. Setting up Row Level Security (RLS) policies for storage...")

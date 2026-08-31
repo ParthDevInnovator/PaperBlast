@@ -4,6 +4,7 @@ import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { UploadPaperButton } from "@/components/upload-paper-button"
 import { ExtractPaperButton } from "@/components/extract-paper-button"
+import { StartMockButton } from "@/components/start-mock-button"
 
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", color: "text-zinc-400", bg: "bg-zinc-400/10", dot: "bg-zinc-400" },
@@ -151,6 +152,16 @@ export default async function DashboardPage() {
                                                 <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping" />
                                                 Extracting…
                                             </span>
+                                        ) : paper.status === "PUBLISHED" ? (
+                                            <div className="flex items-center gap-2">
+                                                <StartMockButton paperId={paper.id} />
+                                                <Link
+                                                    href={`/dashboard/review/${paper.id}`}
+                                                    className="text-xs font-bold text-zinc-500 hover:text-white transition-colors"
+                                                >
+                                                    Manage
+                                                </Link>
+                                            </div>
                                         ) : (
                                             <Link
                                                 href={`/dashboard/review/${paper.id}`}
