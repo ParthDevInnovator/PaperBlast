@@ -31,6 +31,12 @@ export default async function DashboardPage() {
         pending: papers.filter(p => p.status === "PENDING" || p.status === "EXTRACTING").length,
     }
 
+    const pastMocks = await prisma.mock.findMany({
+        where: { userId: user.id },
+        orderBy: { startedAt: "desc" },
+        include: { paper: { select: { title: true, year: true } } },
+    })
+
     return (
         <div className="min-h-screen bg-[#09090b] dark relative">
             {/* Background */}
@@ -174,6 +180,35 @@ export default async function DashboardPage() {
                                 </div>
                             )
                         })}
+                    </div>
+                )}
+
+                {/* Past Mocks */}
+                {pastMocks.length > 0 && (
+                    <div className="mt-16 border-t border-white/10 pt-10">
+                        <h2 className="text-2xl font-black text-white mb-6">Your Past Mocks</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {pastMocks.map(mock => (
+                                <Link key={mock.id} href={mock.submittedAt ? `/results/${mock.id}` : `/mock/${mock.id}`} className="block">
+                                    <div className="border border-white/[0.07] rounded-2xl p-6 bg-white/[0.02] hover:bg-white/[0.04] transition-colors hover:border-white/[0.14]">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <span className="text-xs font-bold text-zinc-400 bg-white/[0.06] border border-white/[0.08] px-3 py-1 rounded-full">
+                                                JEE {mock.paper.year}
+                                            </span>
+                                            {mock.submittedAt ? (
+                                                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full">Score: {mock.score}</span>
+                                            ) : (
+                                                <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full">In Progress</span>
+                                            )}
+                                        </div>
+                                        <h3 className="font-bold text-base text-white leading-snug line-clamp-2 mb-2">
+                                            {mock.paper.title}
+                                        </h3>
+                                        <p className="text-xs text-zinc-500">Started: {mock.startedAt.toISOString().split("T")[0]}</p>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
                     </div>
                 )}
             </main>

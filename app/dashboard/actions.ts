@@ -52,8 +52,6 @@ export async function extractPaperAction(paperId: string) {
         data: { status: "EXTRACTING" }
     })
 
-    revalidatePath("/dashboard")
-
     try {
         const fileName = paper.sourcePdfUrl.substring(paper.sourcePdfUrl.lastIndexOf("/") + 1)
 
@@ -111,6 +109,7 @@ export async function extractPaperAction(paperId: string) {
             data: { status: "PENDING" }
         })
         console.error("Extraction error:", error)
+        require('fs').writeFileSync('extract_error.log', JSON.stringify({ message: error.message, stack: error.stack }, null, 2))
         return { error: error.message || "Failed to extract PDF text." }
     }
 }
