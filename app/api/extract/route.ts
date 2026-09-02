@@ -3,7 +3,12 @@ import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { parseJeePaper } from "@/lib/jee-parser";
 
+export const runtime = "nodejs"; // Ensure Node.js runtime (not Edge) for pdf-parse
+
 export async function POST(request: Request) {
+    // Hoist paperId so the catch block can revert the paper status on failure
+    let paperId: string | null = null;
+
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -12,32 +17,45 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { paperId } = await request.json();
+        // Read body exactly once — Request body stream can only be consumed once
+        const body = await request.json();
+        paperId = body.paperId as string | null;
 
         if (!paperId) {
             return NextResponse.json({ error: "Missing paperId" }, { status: 400 });
         }
 
-        // Idempotency check 
+        // Idempotency guard — prevent double-extraction
         const existingCount = await prisma.question.count({ where: { paperId } });
         if (existingCount > 0) {
-            return NextResponse.json({ error: "Already extracted. Go to Review." }, { status: 409 });
+            return NextResponse.json(
+                { error: "Already extracted. Go to Review." },
+                { status: 409 }
+            );
         }
 
         const paper = await prisma.paper.findUnique({ where: { id: paperId } });
-        if (!paper) return NextResponse.json({ error: "Paper not found." }, { status: 404 });
-
-        if (paper.status !== "PENDING" && paper.status !== "EXTRACTING") {
-            return NextResponse.json({ error: "Paper is already extracted." }, { status: 400 });
+        if (!paper) {
+            return NextResponse.json({ error: "Paper not found." }, { status: 404 });
         }
 
-        // Keep it simple for now, if PENDING, let's update it to EXTRACTING just in case it fails later.
+        if (paper.status !== "PENDING" && paper.status !== "EXTRACTING") {
+            return NextResponse.json(
+                { error: "Paper is already extracted." },
+                { status: 400 }
+            );
+        }
+
+        // Mark as in-progress immediately
         await prisma.paper.update({
             where: { id: paperId },
-            data: { status: "EXTRACTING" }
+            data: { status: "EXTRACTING" },
         });
 
-        const fileName = paper.sourcePdfUrl.substring(paper.sourcePdfUrl.lastIndexOf("/") + 1);
+        // Download PDF from Supabase Storage
+        const fileName = paper.sourcePdfUrl.substring(
+            paper.sourcePdfUrl.lastIndexOf("/") + 1
+        );
 
         const { data: fileBlob, error: downloadError } = await supabase.storage
             .from("papers")
@@ -48,61 +66,65 @@ export async function POST(request: Request) {
         const arrayBuffer = await fileBlob.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        const _mod = require("pdf-parse");
-        // Turbopack wraps CJS default exports as { default: fn }; plain Node.js returns fn directly.
-        const pdfParse: (buf: Buffer) => Promise<{ text: string }> =
-            typeof _mod === "function" ? _mod : _mod.default ?? _mod;
-        const pdfData = await pdfParse(buffer);
-        const text = pdfData.text;
+        // pdf-parse v2 uses a class API — PDFParse({ data: buffer }) → .getText() → .destroy()
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { PDFParse } = require("pdf-parse");
+        const parser = new PDFParse({ data: buffer });
+        const pdfData = await parser.getText();
+        await parser.destroy();
+        const text: string = pdfData.text;
 
+        // Run JEE-aware parser to split into structured question rows
         const parsedQuestions = parseJeePaper(text);
 
-        const mappedQuestions = parsedQuestions.map((q: any) => ({
+        const mappedQuestions = parsedQuestions.map((q) => ({
             paperId: paper.id,
-            subject: "PHYSICS" as const, // Placeholder
+            subject: "PHYSICS" as const, // Placeholder — reviewer assigns correct subject
             questionText: q.questionText,
-            options: q.options ? JSON.parse(JSON.stringify(q.options)) : null, // Store options correctly
-            correctAnswer: q.options ? "A" : "0", // Default dummy values
-            questionType: (q.detectedType === "UNKNOWN" ? "INTEGER" : q.detectedType) as "MCQ" | "INTEGER",
+            options: q.options ?? null,
+            correctAnswer: q.options ? "A" : "0", // Dummy defaults for reviewer to correct
+            questionType: (
+                q.detectedType === "UNKNOWN" ? "INTEGER" : q.detectedType
+            ) as "MCQ" | "INTEGER",
             isVerified: false,
-            // Prefix low confidence for reviewers in solution text
-            solutionText: q.confidence === "LOW" ? "[LOW CONFIDENCE] Please check." : null
+            solutionText:
+                q.confidence === "LOW" ? "[LOW CONFIDENCE] Please check." : null,
         }));
 
         if (mappedQuestions.length > 0) {
-            await prisma.question.createMany({
-                data: mappedQuestions
-            });
+            await prisma.question.createMany({ data: mappedQuestions });
         }
 
         await prisma.paper.update({
             where: { id: paperId },
-            data: { status: "REVIEW" }
+            data: { status: "REVIEW" },
         });
 
         return NextResponse.json({
             success: true,
             count: mappedQuestions.length,
-            highConf: parsedQuestions.filter((q: any) => q.confidence === "HIGH").length,
-            lowConf: parsedQuestions.filter((q: any) => q.confidence === "LOW").length
+            highConf: parsedQuestions.filter((q) => q.confidence === "HIGH").length,
+            lowConf: parsedQuestions.filter((q) => q.confidence === "LOW").length,
         });
 
     } catch (e: any) {
         console.error("Extraction error:", e);
 
-        try {
-            // Attempt to revert status if paperId is passed and failed
-            const { paperId } = await request.json();
-            if (paperId) {
+        // Revert paper status to PENDING so user can try again
+        if (paperId) {
+            try {
                 await prisma.paper.update({
                     where: { id: paperId },
-                    data: { status: "PENDING" }
+                    data: { status: "PENDING" },
                 });
+            } catch (_) {
+                // Ignore revert failure — not critical
             }
-        } catch (revertErr) {
-            // Ignore revert errors
         }
 
-        return NextResponse.json({ error: e.message || "Failed to extract PDF text." }, { status: 500 });
+        return NextResponse.json(
+            { error: e.message || "Failed to extract PDF text." },
+            { status: 500 }
+        );
     }
 }

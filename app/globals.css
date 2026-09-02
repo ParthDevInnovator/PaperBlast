@@ -347,6 +347,9 @@
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
   transform: skewX(-15deg);
   transition: none;
+  pointer-events: none;
+  /* ← never block clicks */
+  z-index: 0;
 }
 
 .feature-card:hover::before {

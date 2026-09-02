@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { UploadPaperButton } from "@/components/upload-paper-button"
 import { ExtractPaperButton } from "@/components/extract-paper-button"
 import { StartMockButton } from "@/components/start-mock-button"
+import { DeletePaperButton } from "@/components/delete-paper-button"
 
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", color: "text-zinc-400", bg: "bg-zinc-400/10", dot: "bg-zinc-400" },
@@ -151,31 +152,34 @@ export default async function DashboardPage() {
                                             <span>↗</span> Original PDF
                                         </a>
 
-                                        {paper.status === "PENDING" ? (
-                                            <ExtractPaperButton paperId={paper.id} />
-                                        ) : paper.status === "EXTRACTING" ? (
-                                            <span className="text-xs font-semibold text-blue-400 flex items-center gap-1.5 animate-pulse">
-                                                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping" />
-                                                Extracting…
-                                            </span>
-                                        ) : paper.status === "PUBLISHED" ? (
-                                            <div className="flex items-center gap-2">
-                                                <StartMockButton paperId={paper.id} />
+                                        <div className="flex items-center gap-2">
+                                            {paper.status === "PENDING" ? (
+                                                <ExtractPaperButton paperId={paper.id} />
+                                            ) : paper.status === "EXTRACTING" ? (
+                                                <span className="text-xs font-semibold text-blue-400 flex items-center gap-1.5 animate-pulse">
+                                                    <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping" />
+                                                    Extracting…
+                                                </span>
+                                            ) : paper.status === "PUBLISHED" ? (
+                                                <div className="flex items-center gap-2">
+                                                    <StartMockButton paperId={paper.id} />
+                                                    <Link
+                                                        href={`/dashboard/review/${paper.id}`}
+                                                        className="text-xs font-bold text-zinc-500 hover:text-white transition-colors"
+                                                    >
+                                                        Manage
+                                                    </Link>
+                                                </div>
+                                            ) : (
                                                 <Link
                                                     href={`/dashboard/review/${paper.id}`}
-                                                    className="text-xs font-bold text-zinc-500 hover:text-white transition-colors"
+                                                    className="text-xs font-bold text-white hover:text-zinc-300 transition-colors flex items-center gap-1"
                                                 >
-                                                    Manage
+                                                    Manage <span>→</span>
                                                 </Link>
-                                            </div>
-                                        ) : (
-                                            <Link
-                                                href={`/dashboard/review/${paper.id}`}
-                                                className="text-xs font-bold text-white hover:text-zinc-300 transition-colors flex items-center gap-1"
-                                            >
-                                                Manage <span>→</span>
-                                            </Link>
-                                        )}
+                                            )}
+                                            <DeletePaperButton paperId={paper.id} />
+                                        </div>
                                     </div>
                                 </div>
                             )
