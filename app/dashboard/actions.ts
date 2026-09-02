@@ -69,3 +69,34 @@ export async function extractPaperAction(paperId: string) {
         return { error: error.message || "Failed to call extract API." }
     }
 }
+
+export async function deletePaperAction(paperId: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: "Unauthorized" }
+
+    try {
+        // 1. Get the paper so we can delete the file from Storage too
+        const paper = await prisma.paper.findUnique({ where: { id: paperId } })
+        if (!paper) return { error: "Paper not found" }
+
+        // 2. Delete all questions (cascade-safe; Prisma onDelete may not be set)
+        await prisma.question.deleteMany({ where: { paperId } })
+
+        // 3. Delete all mock sessions for this paper
+        await prisma.mock.deleteMany({ where: { paperId } })
+
+        // 4. Delete the paper record
+        await prisma.paper.delete({ where: { id: paperId } })
+
+        // 5. Best-effort: delete the PDF file from Supabase Storage
+        const fileName = paper.sourcePdfUrl.substring(paper.sourcePdfUrl.lastIndexOf("/") + 1)
+        await supabase.storage.from("papers").remove([fileName])
+
+        revalidatePath("/dashboard")
+        return { success: true }
+    } catch (e: any) {
+        console.error("Delete paper error:", e)
+        return { error: e.message || "Failed to delete paper." }
+    }
+}
