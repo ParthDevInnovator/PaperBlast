@@ -14,13 +14,14 @@ function StatCard({ label, value, subtext, colorClass }: { label: string, value:
     )
 }
 
-export default async function ResultsPage({ params }: { params: { id: string } }) {
+export default async function ResultsPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return redirect("/auth/login")
 
     const mock = await prisma.mock.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             paper: { select: { title: true, year: true } },
             mockQuestions: {

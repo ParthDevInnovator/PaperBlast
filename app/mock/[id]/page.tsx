@@ -3,13 +3,14 @@ import { createClient } from "@/utils/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { MockExamEngine } from "@/components/mock-exam-engine"
 
-export default async function MockPage({ params }: { params: { id: string } }) {
+export default async function MockPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return redirect("/auth/login")
 
     const mock = await prisma.mock.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             paper: { select: { title: true, year: true } },
             mockQuestions: {

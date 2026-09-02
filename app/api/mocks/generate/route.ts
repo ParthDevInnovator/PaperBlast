@@ -21,9 +21,7 @@ export async function POST(req: NextRequest) {
     const paper = await prisma.paper.findUnique({
         where: { id: paperId },
         include: {
-            questions: {
-                where: { isVerified: true },
-            },
+            questions: true,
         },
     })
 
@@ -36,7 +34,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (paper.questions.length === 0) {
-        return NextResponse.json({ error: "No verified questions available" }, { status: 400 })
+        return NextResponse.json({ error: "No questions available. Please delete this paper and extract it again." }, { status: 400 })
     }
 
     // Group by subject, then interleave: Physics, Chemistry, Mathematics

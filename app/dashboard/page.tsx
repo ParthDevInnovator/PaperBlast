@@ -10,7 +10,6 @@ import { DeletePaperButton } from "@/components/delete-paper-button"
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", color: "text-zinc-400", bg: "bg-zinc-400/10", dot: "bg-zinc-400" },
     EXTRACTING: { label: "Extracting", color: "text-blue-400", bg: "bg-blue-400/10", dot: "bg-blue-400 animate-pulse" },
-    REVIEW: { label: "In Review", color: "text-amber-400", bg: "bg-amber-400/10", dot: "bg-amber-400" },
     PUBLISHED: { label: "Published", color: "text-emerald-400", bg: "bg-emerald-400/10", dot: "bg-emerald-400" },
 }
 
@@ -160,23 +159,8 @@ export default async function DashboardPage() {
                                                     <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping" />
                                                     Extracting…
                                                 </span>
-                                            ) : paper.status === "PUBLISHED" ? (
-                                                <div className="flex items-center gap-2">
-                                                    <StartMockButton paperId={paper.id} />
-                                                    <Link
-                                                        href={`/dashboard/review/${paper.id}`}
-                                                        className="text-xs font-bold text-zinc-500 hover:text-white transition-colors"
-                                                    >
-                                                        Manage
-                                                    </Link>
-                                                </div>
                                             ) : (
-                                                <Link
-                                                    href={`/dashboard/review/${paper.id}`}
-                                                    className="text-xs font-bold text-white hover:text-zinc-300 transition-colors flex items-center gap-1"
-                                                >
-                                                    Manage <span>→</span>
-                                                </Link>
+                                                <StartMockButton paperId={paper.id} />
                                             )}
                                             <DeletePaperButton paperId={paper.id} />
                                         </div>
