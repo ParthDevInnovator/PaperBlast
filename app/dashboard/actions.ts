@@ -39,77 +39,33 @@ export async function extractPaperAction(paperId: string) {
         return { error: "Unauthorized" }
     }
 
-    const paper = await prisma.paper.findUnique({ where: { id: paperId } })
-    if (!paper) return { error: "Paper not found." }
-
-    if (paper.status !== "PENDING") {
-        return { error: "Paper is already extracted." }
-    }
-
-    // Update status immediately to EXTRACTING
-    await prisma.paper.update({
-        where: { id: paperId },
-        data: { status: "EXTRACTING" }
-    })
-
     try {
-        const fileName = paper.sourcePdfUrl.substring(paper.sourcePdfUrl.lastIndexOf("/") + 1)
+        const { cookies } = await import("next/headers");
+        const cookieStore = await cookies();
+        const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
 
-        const { data: fileBlob, error: downloadError } = await supabase.storage
-            .from("papers")
-            .download(fileName)
+        // Use standard URL for fetch in development/production
+        const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
-        if (downloadError) throw new Error("Failed to download PDF from storage")
+        const res = await fetch(`${SITE_URL}/api/extract`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Cookie: cookieHeader
+            },
+            body: JSON.stringify({ paperId })
+        });
 
-        const arrayBuffer = await fileBlob.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
-
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const pdf = require("pdf-parse")
-        const pdfData = await pdf(buffer)
-        const text = pdfData.text
-
-        // --- Basic Heuristic chunking for JEE Format MVP ---
-        // Look for lines starting with Q1., 1., Q.1 etc. 
-        // This is an extremely naive heuristic intended to just get raw blocks for the Admin Review UI
-        const rawQuestions = text.split(/(?:^|\n)(?:Q|Question)?\s*\.?\s*\d+[\.\:\)]/gi).filter(Boolean)
-
-        // The very first chunk is often the cover page/instructions. We can skip it if it's too unstructured, but we'll include it tentatively for the reviewer to manually delete.
-
-        const mappedQuestions = rawQuestions.map((rawText: string) => ({
-            paperId: paper.id,
-            subject: "PHYSICS" as const, // Placeholder, reviewer sets real subject
-            questionText: rawText.substring(0, 1500).trim(), // Crop weirdly large chunks just in case
-            options: { "A": "Option 1", "B": "Option 2", "C": "Option 3", "D": "Option 4" }, // Dummy options
-            correctAnswer: "A",
-            questionType: "MCQ" as const,
-            isVerified: false
-        }))
-
-        // Bulk insert
-        if (mappedQuestions.length > 0) {
-            await prisma.question.createMany({
-                data: mappedQuestions
-            })
+        const data = await res.json();
+        if (!res.ok) {
+            return { error: data.error || "Failed to extract" };
         }
 
-        // Set to REVIEW
-        await prisma.paper.update({
-            where: { id: paperId },
-            data: { status: "REVIEW" }
-        })
-
         revalidatePath("/dashboard")
-        return { success: true, count: mappedQuestions.length }
+        return { success: true, count: data.count, highConf: data.highConf, lowConf: data.lowConf };
 
     } catch (error: any) {
-        // Revert status if completely failed
-        await prisma.paper.update({
-            where: { id: paperId },
-            data: { status: "PENDING" }
-        })
-        console.error("Extraction error:", error)
-        require('fs').writeFileSync('extract_error.log', JSON.stringify({ message: error.message, stack: error.stack }, null, 2))
-        return { error: error.message || "Failed to extract PDF text." }
+        console.error("Extraction action error:", error)
+        return { error: error.message || "Failed to call extract API." }
     }
 }
