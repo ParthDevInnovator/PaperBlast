@@ -8,14 +8,15 @@ import { publishPaperAction } from "./actions"
 export default async function ReviewPage({
     params,
 }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }) {
+    const { id } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return redirect("/auth/login")
 
     const paper = await prisma.paper.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: { questions: { orderBy: { id: "asc" } } },
     })
 
