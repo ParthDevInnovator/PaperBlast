@@ -17,7 +17,7 @@ import {
 
 declare module "@tanstack/react-table" {
     interface TableMeta<TData extends RowData> {
-        updateData: (rowIndex: number, columnId: string, value: string) => void
+        updateData: (questionId: string, columnId: string, value: string) => void
     }
 }
 
@@ -49,7 +49,7 @@ function EditableCell({
     const onBlur = async () => {
         if (value === initialValue) return
         setIsSaving(true)
-        table.options.meta?.updateData(row.index, column.id, value)
+        table.options.meta?.updateData(row.original.id, column.id, value)
         await updateQuestionAction(row.original.id, { [column.id]: value })
         setIsSaving(false)
     }
@@ -89,7 +89,7 @@ function SelectCell({
     const onChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newVal = e.target.value
         setValue(newVal)
-        table.options.meta?.updateData(row.index, column.id, newVal)
+        table.options.meta?.updateData(row.original.id, column.id, newVal)
         await updateQuestionAction(row.original.id, { [column.id]: newVal })
     }
 
@@ -117,17 +117,26 @@ export function ReviewTable({
 }) {
     const [questions, setQuestions] = useState(initialQuestions)
     const [globalFilter, setGlobalFilter] = useState("")
+    const [filterType, setFilterType] = useState<"ALL" | "LOW" | "UNVERIFIED">("ALL")
 
     const updateData = useCallback(
-        (rowIndex: number, columnId: string, value: string) => {
+        (questionId: string, columnId: string, value: string) => {
             setQuestions((old) =>
-                old.map((row, index) =>
-                    index === rowIndex ? { ...row, [columnId]: value } : row
+                old.map((row) =>
+                    row.id === questionId ? { ...row, [columnId]: value } : row
                 )
             )
         },
         []
     )
+
+    // We actually need to fix `updateData`: react-table's rowIndex refers to the currently displayed sorted/filtered array.
+    // It's better to update by question ID, but updateData is called from editable cell which gives original index...
+    // Actually, Meta options allows passing rowId instead. Or we just keep it simple, but wait...
+    // If I filter `data: filteredQuestions`, rowIndex will be wrong. 
+
+    // Better to filter using TanStack's built-in hooks or simply apply filter to the `data` but `rowIndex` mapping will break.
+    // Let's modify `EditableCell` and `SelectCell` later?
 
     const handleToggleVerified = async (questionId: string, current: boolean) => {
         await toggleVerifiedAction(questionId, current)
@@ -141,6 +150,12 @@ export function ReviewTable({
         await deleteQuestionAction(questionId)
         setQuestions((old) => old.filter((q) => q.id !== questionId))
     }
+
+    const filteredQuestions = questions.filter(q => {
+        if (filterType === "LOW") return q.questionText?.includes("[LOW CONFIDENCE]") || q.solutionText?.includes("[LOW CONFIDENCE]");
+        if (filterType === "UNVERIFIED") return !q.isVerified;
+        return true;
+    });
 
     const columns: ColumnDef<Question>[] = [
         {
@@ -201,13 +216,33 @@ export function ReviewTable({
                 <button
                     onClick={() => handleToggleVerified(row.original.id, row.original.isVerified)}
                     className={`px-2 py-1 rounded-full text-xs font-bold transition-colors ${row.original.isVerified
-                            ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
-                            : "bg-zinc-700 text-zinc-400 hover:bg-zinc-600"
+                        ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                        : "bg-zinc-700 text-zinc-400 hover:bg-zinc-600"
                         }`}
                 >
                     {row.original.isVerified ? "✓ Yes" : "No"}
                 </button>
             ),
+        },
+        {
+            id: "confidence",
+            header: "Confidence",
+            size: 100,
+            cell: ({ row }) => {
+                const isLow = row.original.questionText?.includes("[LOW CONFIDENCE]") || row.original.solutionText?.includes("[LOW CONFIDENCE]");
+                if (isLow) {
+                    return (
+                        <span className="px-2 py-1 bg-amber-500/10 text-amber-500 text-[10px] uppercase font-bold rounded flex items-center gap-1 w-max cursor-help" title="Low confidence — auto-extracted, please verify">
+                            ⚠️ Low
+                        </span>
+                    );
+                }
+                return (
+                    <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 text-[10px] uppercase font-bold rounded flex items-center gap-1 w-max">
+                        ✓ High
+                    </span>
+                );
+            }
         },
         {
             id: "actions",
@@ -240,12 +275,23 @@ export function ReviewTable({
         <div className="flex flex-col h-full">
             {/* Table toolbar */}
             <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
-                <input
-                    value={globalFilter}
-                    onChange={(e) => setGlobalFilter(e.target.value)}
-                    placeholder="Search questions..."
-                    className="bg-secondary border border-border rounded-lg px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-72"
-                />
+                <div className="flex items-center gap-3">
+                    <input
+                        value={globalFilter}
+                        onChange={(e) => setGlobalFilter(e.target.value)}
+                        placeholder="Search questions..."
+                        className="bg-secondary border border-border rounded-lg px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-72"
+                    />
+                    <select
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value as any)}
+                        className="bg-secondary border border-border rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                        <option value="ALL">All Questions</option>
+                        <option value="LOW">⚠️ Low Confidence</option>
+                        <option value="UNVERIFIED">Unverified Only</option>
+                    </select>
+                </div>
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <span>
                         <span className="text-green-400 font-semibold">{verifiedCount}</span> / {questions.length} verified

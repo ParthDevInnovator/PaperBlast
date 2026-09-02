@@ -56,16 +56,16 @@ This document breaks down the PRD into actionable development tasks mapped to ou
     *   Implement debounced API calls hitting the backend every 60s or on specific navigation events.
 
 ## Phase 4: Auto-Grading & Review
-*   [ ] **Task 4.1: Mock Submission & Auto-grading API**
+*   [x] **Task 4.1: Mock Submission & Auto-grading API**
     *   Create `/api/mocks/submit` endpoint.
     *   Implement NTA Grading logic:
         *   Join user `AttemptAnswer` vs verified `Question.correctAnswer`.
         *   Apply `+4/-1` rule for MCQ.
         *   Apply `+4/0` rule for INTEGER.
     *   Calculate raw score and mark mock as `submittedAt: now()`.
-*   [ ] **Task 4.2: Review Result View**
+*   [x] **Task 4.2: Review Result View**
     *   Build `/review/[id]` screen to read completed mocks.
     *   Show Subject-wise analysis cards (Physics Score, Chem Score, Math Score).
-*   [ ] **Task 4.3: Solution Reveal UI**
+*   [x] **Task 4.3: Solution Reveal UI**
     *   Build an interface that shows User Answer side-by-side with Correct Answer.
     *   Un-hide and render `solutionText`.

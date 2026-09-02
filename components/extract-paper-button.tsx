@@ -10,9 +10,14 @@ export function ExtractPaperButton({ paperId }: { paperId: string }) {
     async function handleExtract() {
         setError(null)
         setIsExtracting(true)
-        const result = await extractPaperAction(paperId)
-        setIsExtracting(false)
-        if (result?.error) setError(result.error)
+        try {
+            const result = await extractPaperAction(paperId)
+            if (result?.error) setError(result.error)
+        } catch (e: any) {
+            setError(e.message || "An unexpected error occurred")
+        } finally {
+            setIsExtracting(false)
+        }
     }
 
     if (error) {
@@ -23,9 +28,15 @@ export function ExtractPaperButton({ paperId }: { paperId: string }) {
 
     return (
         <button
-            onClick={handleExtract}
+            type="button"
+            onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("Button clicked!");
+                handleExtract();
+            }}
             disabled={isExtracting}
-            className="text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            className="relative z-50 select-none text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer p-2 -m-2"
         >
             {isExtracting ? (
                 <>
