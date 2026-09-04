@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Paper not found" }, { status: 404 })
     }
 
-    if (paper.status !== "PUBLISHED") {
+    if (paper.status !== "PUBLISHED" && paper.status !== "REVIEW") {
         return NextResponse.json({ error: "Paper is not published yet" }, { status: 400 })
     }
 
