@@ -6,10 +6,12 @@ import { UploadPaperButton } from "@/components/upload-paper-button"
 import { ExtractPaperButton } from "@/components/extract-paper-button"
 import { StartMockButton } from "@/components/start-mock-button"
 import { DeletePaperButton } from "@/components/delete-paper-button"
+import { DashboardAutoRefresh } from "@/components/dashboard-auto-refresh"
 
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", color: "text-zinc-400", bg: "bg-zinc-400/10", dot: "bg-zinc-400" },
     EXTRACTING: { label: "Extracting", color: "text-blue-400", bg: "bg-blue-400/10", dot: "bg-blue-400 animate-pulse" },
+    REVIEW: { label: "Review", color: "text-amber-400", bg: "bg-amber-400/10", dot: "bg-amber-400" },
     PUBLISHED: { label: "Published", color: "text-emerald-400", bg: "bg-emerald-400/10", dot: "bg-emerald-400" },
 }
 
@@ -39,6 +41,7 @@ export default async function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-[#09090b] dark relative">
+            <DashboardAutoRefresh hasExtracting={papers.some(p => p.status === "EXTRACTING")} />
             {/* Background */}
             <div className="fixed inset-0 pointer-events-none z-0">
                 <div className="hero-grid absolute inset-0" />

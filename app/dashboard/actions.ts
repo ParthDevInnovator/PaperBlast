@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { runExtraction } from "@/lib/run-extraction"
 
 export async function createPaperRecordAction(params: {
     title: string
@@ -40,33 +41,19 @@ export async function extractPaperAction(paperId: string) {
     }
 
     try {
-        const { cookies } = await import("next/headers");
-        const cookieStore = await cookies();
-        const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
+        // Mark as extracting immediately for the UI
+        await prisma.paper.update({ where: { id: paperId }, data: { status: "EXTRACTING" } })
 
-        // Use standard URL for fetch in development/production
-        const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-
-        const res = await fetch(`${SITE_URL}/api/extract`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Cookie: cookieHeader
-            },
-            body: JSON.stringify({ paperId })
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-            return { error: data.error || "Failed to extract" };
-        }
+        // ── Fire & Forget Background Job ──
+        // (In a full prod system, enqueue into QStash. For Vercel/Node: just don't await)
+        Promise.resolve().then(() => runExtraction(paperId)).catch(console.error);
 
         revalidatePath("/dashboard")
-        return { success: true, count: data.count, highConf: data.highConf, lowConf: data.lowConf };
+        return { success: true }
 
     } catch (error: any) {
         console.error("Extraction action error:", error)
-        return { error: error.message || "Failed to call extract API." }
+        return { error: "Failed to start extraction job." }
     }
 }
 

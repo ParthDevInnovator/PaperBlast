@@ -27,7 +27,7 @@ function formatTime(seconds: number) {
 
 export function MockExamEngine({
     mockId,
-    questions,
+    questions: initialQuestions,
     durationMins,
     startedAt,
 }: {
@@ -39,6 +39,38 @@ export function MockExamEngine({
     const router = useRouter()
     const storageKey = `mock-${mockId}`
 
+    // ── Live question list (grows as extraction progresses) ─────────────────
+    const [questions, setQuestions] = useState<Question[]>(initialQuestions)
+    const [extractionDone, setExtractionDone] = useState(false)
+    const [newQsToast, setNewQsToast] = useState<string | null>(null)
+
+    // Poll for newly extracted questions every 10s
+    useEffect(() => {
+        if (extractionDone) return
+        const poll = async () => {
+            try {
+                const res = await fetch(`/api/mocks/poll?mockId=${mockId}`)
+                if (!res.ok) return
+                const data = await res.json()
+                if (data.done) setExtractionDone(true)
+                if (data.newQuestions && data.newQuestions.length > 0) {
+                    setQuestions(prev => {
+                        const existingIds = new Set(prev.map(q => q.mockQuestionId))
+                        const fresh = data.newQuestions.filter(
+                            (q: Question) => !existingIds.has(q.mockQuestionId)
+                        )
+                        if (fresh.length === 0) return prev
+                        setNewQsToast(`${fresh.length} new questions loaded`)
+                        setTimeout(() => setNewQsToast(null), 3000)
+                        return [...prev, ...fresh]
+                    })
+                }
+            } catch { }
+        }
+        const interval = setInterval(poll, 10000)
+        return () => clearInterval(interval)
+    }, [mockId, extractionDone])
+
     // ── State ──────────────────────────────────────────────────────────────────
     const [currentIdx, setCurrentIdx] = useState(0)
     const [answers, setAnswers] = useState<AnswerState>(() => {
@@ -49,7 +81,7 @@ export function MockExamEngine({
             } catch { }
         }
         const init: AnswerState = {}
-        for (const q of questions) init[q.mockQuestionId] = q.savedAnswer
+        for (const q of initialQuestions) init[q.mockQuestionId] = q.savedAnswer
         return init
     })
     const [flags, setFlags] = useState<FlagState>(() => {
@@ -68,7 +100,7 @@ export function MockExamEngine({
                 if (saved) return JSON.parse(saved)
             } catch { }
         }
-        return { [questions[0]?.mockQuestionId]: true }
+        return { [initialQuestions[0]?.mockQuestionId]: true }
     })
 
     // Local state for what is currently selected ON THE SCREEN (but not yet saved)
@@ -243,6 +275,18 @@ export function MockExamEngine({
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
         <div className="flex flex-col h-screen bg-[#f4f4f4] text-black font-sans selection:bg-blue-200">
+            {/* Toast for new questions */}
+            {newQsToast && (
+                <div className="fixed top-4 right-4 z-50 bg-[#1e448b] text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold animate-pulse">
+                    ✨ {newQsToast}
+                </div>
+            )}
+            {/* Extraction in-progress indicator */}
+            {!extractionDone && (
+                <div className="bg-amber-100 text-amber-800 text-xs text-center py-1 font-medium">
+                    ⏳ More questions are being extracted in the background...
+                </div>
+            )}
             {/* Header */}
             <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 bg-[#1e448b] text-white shadow-md z-20">
                 <div className="text-xl font-bold tracking-wide">
