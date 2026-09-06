@@ -29,12 +29,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Paper not found" }, { status: 404 })
     }
 
-    if (paper.status !== "PUBLISHED" && paper.status !== "REVIEW") {
-        return NextResponse.json({ error: "Paper is not published yet" }, { status: 400 })
+    const canStart = paper.status === "PUBLISHED" || paper.status === "REVIEW" || (paper.status === "EXTRACTING" && paper.questions.length > 0);
+    if (!canStart) {
+        return NextResponse.json({ error: "Paper is not ready yet. Please wait for questions to be extracted." }, { status: 400 });
     }
 
     if (paper.questions.length === 0) {
-        return NextResponse.json({ error: "No questions available. Please delete this paper and extract it again." }, { status: 400 })
+        return NextResponse.json({ error: "No questions available yet. Please wait a moment." }, { status: 400 });
     }
 
     // Group by subject, then interleave: Physics, Chemistry, Mathematics

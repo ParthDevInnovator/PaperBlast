@@ -44,7 +44,7 @@ export function MockExamEngine({
     const [extractionDone, setExtractionDone] = useState(false)
     const [newQsToast, setNewQsToast] = useState<string | null>(null)
 
-    // Poll for newly extracted questions every 10s
+    // Poll for newly extracted questions every 4s
     useEffect(() => {
         if (extractionDone) return
         const poll = async () => {
@@ -60,14 +60,14 @@ export function MockExamEngine({
                             (q: Question) => !existingIds.has(q.mockQuestionId)
                         )
                         if (fresh.length === 0) return prev
-                        setNewQsToast(`${fresh.length} new questions loaded`)
-                        setTimeout(() => setNewQsToast(null), 3000)
+                        setNewQsToast(`⚡ ${fresh.length} new questions loaded`)
+                        setTimeout(() => setNewQsToast(null), 4000)
                         return [...prev, ...fresh]
                     })
                 }
             } catch { }
         }
-        const interval = setInterval(poll, 10000)
+        const interval = setInterval(poll, 4000)
         return () => clearInterval(interval)
     }, [mockId, extractionDone])
 
