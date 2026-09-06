@@ -158,10 +158,15 @@ export default async function DashboardPage() {
                                             {paper.status === "PENDING" ? (
                                                 <ExtractPaperButton paperId={paper.id} />
                                             ) : paper.status === "EXTRACTING" ? (
-                                                <span className="text-xs font-semibold text-blue-400 flex items-center gap-1.5 animate-pulse">
-                                                    <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping" />
-                                                    Extracting…
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-semibold text-blue-400 flex items-center gap-1.5 animate-pulse">
+                                                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping" />
+                                                        Extracting…
+                                                    </span>
+                                                    {paper._count.questions > 0 && (
+                                                        <StartMockButton paperId={paper.id} />
+                                                    )}
+                                                </div>
                                             ) : (
                                                 <StartMockButton paperId={paper.id} />
                                             )}
