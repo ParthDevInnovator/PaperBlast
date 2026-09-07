@@ -73,44 +73,64 @@ async function uploadVisualPage(base64: string, supabase: any): Promise<string |
 // ─── Mistral OCR: ONE call for the entire PDF (~5–8 sec) ──────────────────────
 async function mistralDocumentOcr(
     mistralApiKey: string,
-    pdfBuffer: Buffer
+    pdfBuffer: Buffer,
+    pdfUrl?: string
 ): Promise<{ text: string; totalPages: number }> {
-    const base64 = pdfBuffer.toString("base64");
+    const maxAttempts = 3;
+    let lastError: any = null;
 
-    const res = await fetch("https://api.mistral.ai/v1/ocr", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${mistralApiKey}`,
-        },
-        body: JSON.stringify({
-            model: "mistral-ocr-latest",
-            document: {
-                type: "document_url",
-                document_url: `data:application/pdf;base64,${base64}`,
-            },
-        }),
-    });
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            // Prefer public URL if available to avoid uploading large base64 payload over domestic socket
+            const docUrl =
+                pdfUrl && pdfUrl.startsWith("http")
+                    ? pdfUrl
+                    : `data:application/pdf;base64,${pdfBuffer.toString("base64")}`;
 
-    if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        throw new Error(`Mistral OCR ${res.status}: ${body.slice(0, 200)}`);
+            const res = await fetch("https://api.mistral.ai/v1/ocr", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${mistralApiKey}`,
+                },
+                body: JSON.stringify({
+                    model: "mistral-ocr-latest",
+                    document: {
+                        type: "document_url",
+                        document_url: docUrl,
+                    },
+                }),
+            });
+
+            if (!res.ok) {
+                const body = await res.text().catch(() => "");
+                throw new Error(`Mistral OCR ${res.status}: ${body.slice(0, 200)}`);
+            }
+
+            const data = (await res.json()) as {
+                pages: Array<{ index: number; markdown: string }>;
+            };
+
+            if (!Array.isArray(data.pages) || data.pages.length === 0) {
+                throw new Error("Mistral OCR returned no pages");
+            }
+
+            const text = data.pages
+                .sort((a, b) => a.index - b.index)
+                .map((p) => `--- Page ${p.index + 1} ---\n${p.markdown}`)
+                .join("\n\n");
+
+            return { text, totalPages: data.pages.length };
+        } catch (err: any) {
+            lastError = err;
+            console.warn(`⚠️ Mistral OCR attempt ${attempt}/${maxAttempts} failed: ${err.message}`);
+            if (attempt < maxAttempts) {
+                await new Promise((r) => setTimeout(r, 1500 * attempt));
+            }
+        }
     }
 
-    const data = (await res.json()) as {
-        pages: Array<{ index: number; markdown: string }>;
-    };
-
-    if (!Array.isArray(data.pages) || data.pages.length === 0) {
-        throw new Error("Mistral OCR returned no pages");
-    }
-
-    const text = data.pages
-        .sort((a, b) => a.index - b.index)
-        .map((p) => `--- Page ${p.index + 1} ---\n${p.markdown}`)
-        .join("\n\n");
-
-    return { text, totalPages: data.pages.length };
+    throw lastError || new Error("Mistral OCR failed after retries");
 }
 
 // ─── Map to Prisma database row ───────────────────────────────────────────────
@@ -169,7 +189,11 @@ export async function runExtraction(paperId: string) {
 
     // 3. Mistral OCR — ONE CALL for the entire PDF
     const tOcr = Date.now();
-    const { text: pageAwareText, totalPages } = await mistralDocumentOcr(mistralKey, pdfBuffer);
+    const { text: pageAwareText, totalPages } = await mistralDocumentOcr(
+        mistralKey,
+        pdfBuffer,
+        paper.sourcePdfUrl
+    );
     const mistralMs = Date.now() - tOcr;
     console.log(`📥 Mistral OCR: ${mistralMs} ms (${totalPages} pages)`);
 
