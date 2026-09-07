@@ -17,7 +17,7 @@ async function setupStorage() {
         const { data: bucket, error: bucketError } = await supabase.storage.createBucket("papers", {
             public: true,
             fileSizeLimit: 52428800, // 50 MB
-            allowedMimeTypes: ["application/pdf"],
+            allowedMimeTypes: ["application/pdf", "image/png", "image/jpeg", "image/webp"],
         })
 
         if (bucketError) {
@@ -26,7 +26,7 @@ async function setupStorage() {
                 const { error: updateError } = await supabase.storage.updateBucket("papers", {
                     public: true,
                     fileSizeLimit: 52428800, // 50 MB
-                    allowedMimeTypes: ["application/pdf"],
+                    allowedMimeTypes: ["application/pdf", "image/png", "image/jpeg", "image/webp"],
                 })
                 if (updateError) {
                     console.error("Failed to update bucket:", updateError.message)

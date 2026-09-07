@@ -23,6 +23,7 @@ export default async function MockPage({ params }: { params: Promise<{ id: strin
                             questionType: true,
                             questionText: true,
                             options: true,
+                            imageUrl: true,
                         },
                     },
                     attemptAnswer: { select: { selectedAnswer: true } },
@@ -47,6 +48,7 @@ export default async function MockPage({ params }: { params: Promise<{ id: strin
         questionType: mq.question.questionType as "MCQ" | "INTEGER",
         questionText: mq.question.questionText,
         options: mq.question.options as Record<string, string> | null,
+        imageUrl: mq.question.imageUrl,
         savedAnswer: mq.attemptAnswer?.selectedAnswer ?? null,
     }))
 

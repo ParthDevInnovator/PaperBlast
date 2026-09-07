@@ -55,7 +55,7 @@ export function preprocessMarkdown(markdown: string): PreprocessedDocument {
 export function splitBySubjectSections(questionsText: string): SubjectSection[] {
     // Matches subject headings even if formatted in tables or markdown:
     // e.g. "| MATHEMATICS |", "# **PHYSICS** |", "## CHEMISTRY", "PART I: PHYSICS", "**MATHEMATICS**"
-    const sectionPattern = /(?:^|\n|\|)(?:\s*#+\s*|\s*\*{1,3}\s*|\s*\[)?(?:(?:SECTION|PART)\s*[-:]?\s*(?:[1-3]|[A-C]|I{1,3})\s*[-:—]?\s*)?(PHYSICS|CHEMISTRY|MATHEMATICS)(?:\s*[-:—]\s*(?:SECTION|PART)\s*[A-C1-3])?(?:\s*|\*{1,3}|\])?(?:\s*\||\s*\n|$)/gi;
+    const sectionPattern = /(?:^|\n|\|)\s*(?:#+\s*)?(?:\*{1,3}\s*)?(?:\[\s*)?(?:(?:SECTION|PART)\s*[-:]?\s*(?:[1-3]|[A-C]|I{1,3})\s*[-:—]?\s*)?(PHYSICS|CHEMISTRY|MATHEMATICS)(?:\s*[-:—]\s*(?:SECTION|PART)\s*[A-C1-3])?(?:\*{1,3})?(?:\s*\])?\s*(?:\||\n|$)/gi;
 
     type Match = {
         subject: "PHYSICS" | "CHEMISTRY" | "MATHEMATICS";
@@ -188,3 +188,146 @@ export function segmentQuestions(questionsText: string, chunkSize: number = 15):
 
     return segments;
 }
+
+export type ExtractionChunk = {
+    id: string;
+    name: string;
+    text: string;
+    subject?: "PHYSICS" | "CHEMISTRY" | "MATHEMATICS";
+};
+
+/**
+ * Splits a section text into 2 sub-chunks along a page marker or question boundary.
+ */
+function splitSectionInHalf(section: SubjectSection): ExtractionChunk[] {
+    const pages = section.text.split(/(?=--- Page \d+ ---)/g).filter(p => p.trim().length > 0);
+    if (pages.length >= 2) {
+        const mid = Math.ceil(pages.length / 2);
+        const p1 = pages.slice(0, mid).join("\n\n").trim();
+        let p2 = pages.slice(mid).join("\n\n").trim();
+        // Ensure p2 has preceding page marker
+        if (!p2.startsWith("--- Page")) {
+            const lastPageMatch = [...p1.matchAll(/--- Page (\d+) ---/g)].pop();
+            if (lastPageMatch) {
+                p2 = `${lastPageMatch[0]}\n${p2}`;
+            }
+        }
+        return [
+            {
+                id: `${section.subject}-Part1`,
+                name: `${section.subject} (Part 1)`,
+                text: p1,
+                subject: section.subject,
+            },
+            {
+                id: `${section.subject}-Part2`,
+                name: `${section.subject} (Part 2)`,
+                text: p2,
+                subject: section.subject,
+            },
+        ];
+    }
+
+    // Fallback: split by question markers
+    const qSplitRegex = /(?:^|\n)(?=(?:#+\s*)?(?:Q(?:uestion)?\.?\s*\d+[\.\:\)]|\(?\d+\)[\.\s]|\b\d{1,2}\.\s))/i;
+    const parts = section.text.split(qSplitRegex).filter(p => p.trim().length > 0);
+    if (parts.length >= 2) {
+        const mid = Math.ceil(parts.length / 2);
+        return [
+            {
+                id: `${section.subject}-Part1`,
+                name: `${section.subject} (Part 1)`,
+                text: parts.slice(0, mid).join("\n\n").trim(),
+                subject: section.subject,
+            },
+            {
+                id: `${section.subject}-Part2`,
+                name: `${section.subject} (Part 2)`,
+                text: parts.slice(mid).join("\n\n").trim(),
+                subject: section.subject,
+            },
+        ];
+    }
+
+    return [
+        {
+            id: section.subject,
+            name: section.subject,
+            text: section.text,
+            subject: section.subject,
+        },
+    ];
+}
+
+/**
+ * Segments page-aware OCR text into approximately 3-5 balanced chunks (default: 4).
+ * Always preserves page boundaries and subject context.
+ */
+export function segmentDocumentIntoChunks(
+    pageAwareText: string,
+    targetChunks: number = 4
+): ExtractionChunk[] {
+    const { questionsText } = preprocessMarkdown(pageAwareText);
+    const sections = splitBySubjectSections(questionsText);
+
+    if (sections.length >= 2) {
+        // If we have distinct subject sections
+        if (targetChunks <= 3 || sections.length >= targetChunks) {
+            return sections.map(s => ({
+                id: s.subject,
+                name: s.subject,
+                text: s.text,
+                subject: s.subject,
+            }));
+        }
+
+        // targetChunks == 4: split the largest section into 2 parts
+        // targetChunks == 5: split the 2 largest sections into 2 parts
+        const sortedByLen = [...sections].sort((a, b) => b.text.length - a.text.length);
+        const toSplitCount = targetChunks - sections.length;
+        const sectionsToSplit = new Set(sortedByLen.slice(0, toSplitCount).map(s => s.subject));
+
+        const finalChunks: ExtractionChunk[] = [];
+        for (const s of sections) {
+            if (sectionsToSplit.has(s.subject)) {
+                finalChunks.push(...splitSectionInHalf(s));
+            } else {
+                finalChunks.push({
+                    id: s.subject,
+                    name: s.subject,
+                    text: s.text,
+                    subject: s.subject,
+                });
+            }
+        }
+        return finalChunks;
+    }
+
+    // Fallback: Segment by pages into targetChunks
+    const pages = questionsText.split(/(?=--- Page \d+ ---)/g).filter(p => p.trim().length > 0);
+    if (pages.length >= targetChunks) {
+        const perChunk = Math.ceil(pages.length / targetChunks);
+        const chunks: ExtractionChunk[] = [];
+        for (let i = 0; i < targetChunks; i++) {
+            const slice = pages.slice(i * perChunk, (i + 1) * perChunk);
+            if (slice.length > 0) {
+                const label = String.fromCharCode(65 + i); // A, B, C, D...
+                chunks.push({
+                    id: `Chunk-${label}`,
+                    name: `Chunk ${label}`,
+                    text: slice.join("\n\n").trim(),
+                });
+            }
+        }
+        return chunks;
+    }
+
+    return [
+        {
+            id: "Chunk-A",
+            name: "Chunk A",
+            text: questionsText,
+        },
+    ];
+}
+

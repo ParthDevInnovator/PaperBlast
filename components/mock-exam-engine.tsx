@@ -11,6 +11,7 @@ type Question = {
     questionType: "MCQ" | "INTEGER"
     questionText: string
     options: Record<string, string> | null
+    imageUrl?: string | null
     savedAnswer: string | null
 }
 
@@ -337,9 +338,24 @@ export function MockExamEngine({
                         </div>
 
                         {/* Question Text */}
-                        <div className="text-base text-gray-800 leading-relaxed overflow-x-auto min-h-[150px] whitespace-pre-wrap">
+                        <div className="text-base text-gray-800 leading-relaxed overflow-x-auto min-h-[100px] whitespace-pre-wrap">
                             {currentQ.questionText || <span className="italic text-gray-500">Question text is missing.</span>}
                         </div>
+
+                        {/* Question Visual / Diagram Image */}
+                        {currentQ.imageUrl && (
+                            <div className="my-4 max-w-full overflow-hidden rounded-md border border-gray-300 bg-white p-2 shadow-sm flex flex-col items-center">
+                                <div className="text-xs text-gray-500 self-start mb-1 font-semibold uppercase tracking-wider">
+                                    Diagram / Reference Figure:
+                                </div>
+                                <img
+                                    src={currentQ.imageUrl}
+                                    alt={`Figure for Question ${currentQ.displayOrder}`}
+                                    className="max-h-[400px] w-auto max-w-full object-contain rounded"
+                                    loading="lazy"
+                                />
+                            </div>
+                        )}
 
                         {/* Options / Input */}
                         <div className="mt-8 select-none">
